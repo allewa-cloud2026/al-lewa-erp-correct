@@ -684,29 +684,28 @@ function TrainingVideoPage({user}){
   const embeddedVideoLink=googleDrivePreviewUrl(savedVideoLink);
   const hasSavedVideoLink=Boolean(savedVideoLink.trim());
   const workflow=[
-    "Login to Al Lewa App",
-    "Open Daily Route Plan",
-    "Review Assigned Shops",
-    "Select Shop and Start Visit",
-    "Capture Before Display Photo",
-    "Check Shelf Display, Stock and Pricing",
+    "Login",
+    "Dashboard",
+    "Daily Route Plan",
+    "Select Shop",
+    "Start Visit",
+    "Current Display Photo",
     "Report Stock Issue / OOS",
-    "Add Competitor Activity",
-    "Add Order Request if Required",
-    "Capture After Display Photo",
-    "Confirm GPS Location",
-    "Press End Visit",
-    "Move to Next Shop",
-    "Complete Daily Route",
+    "Competitor Activity",
+    "Order Request",
+    "GPS / Open Location",
+    "End Visit",
+    "Visit Completed",
   ];
   const rules=[
-    "Start visit only after reaching the shop.",
+    "Keep the demo focused on the essential Merchandiser workflow.",
+    "Target a maximum demonstration duration of 2 minutes.",
+    "Start visit only after reaching the selected shop.",
     "Keep GPS enabled.",
-    "Upload clear before and after photos.",
+    "Upload a clear current display photo.",
     "Report OOS and stock issues immediately.",
     "Enter competitor information accurately.",
-    "Do not end visit before submitting required details.",
-    "Complete all assigned shops before ending the day.",
+    "Do not end visit before submitting required visit details.",
   ];
   const saveVideoLink=()=>{
     const next=(videoLinkDraft||"").trim();
@@ -743,9 +742,7 @@ function TrainingVideoPage({user}){
           referrerPolicy="strict-origin-when-cross-origin"
           style={{display:"block",width:"100%",maxWidth:"1100px",height:"auto",border:"0",background:"#000000",aspectRatio:"16 / 9"}}
         />:<video
-          autoPlay
           muted
-          loop
           playsInline
           controls
           preload="metadata"
