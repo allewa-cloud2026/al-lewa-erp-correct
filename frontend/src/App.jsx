@@ -296,25 +296,6 @@ function greetingForUser(user){
   const firstName=(user?.full_name||"User").trim().split(/\s+/)[0]||"User";
   return `Good morning, ${firstName} 👋`;
 }
-function googleDrivePreviewUrl(url){
-  const trimmed=(url||"").trim();
-  if(!trimmed)return"";
-  const directMatch=trimmed.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
-  if(directMatch?.[1])return `https://drive.google.com/file/d/${directMatch[1]}/preview`;
-  try{
-    const parsed=new URL(trimmed);
-    const hostname=parsed.hostname.replace(/^www\./,"");
-    if(hostname==="drive.google.com"){
-      if(parsed.pathname.endsWith("/preview"))return trimmed;
-      const fileMatch=parsed.pathname.match(/\/file\/d\/([^/]+)/);
-      const fileId=fileMatch?.[1]||parsed.searchParams.get("id");
-      if(fileId)return `https://drive.google.com/file/d/${fileId}/preview`;
-    }
-  }catch(e){
-    return trimmed;
-  }
-  return trimmed;
-}
 function renderFilePreview(source){if(!source)return <div style={{color:'#999999',fontSize:'13px'}}>No preview available</div>;
   if(isImageSource(source)) return <img src={source} style={{maxWidth:'100%',maxHeight:'420px',borderRadius:10,objectFit:'contain'}} alt="Preview" />;
   return <iframe src={source} style={{width:'100%',height:'420px',borderRadius:10,border:'1px solid #E5E5E5'}} title="Document preview" />;
@@ -335,7 +316,6 @@ async function db(table, method="select", options={}){
 
 const MOCK_DB = {areas:MOCK_AREAS,shops:MOCK_SHOPS,profiles:MOCK_PROFILES,attendance:MOCK_ATTENDANCE,shop_visits:MOCK_VISITS,daily_routes:MOCK_DAILY_ROUTES,daily_route_stops:MOCK_DAILY_ROUTE_STOPS,deliveries:MOCK_DELIVERIES,lpos:MOCK_LPOS,daily_scores:MOCK_SCORES,notifications:MOCK_NOTIFICATIONS,authorizations:MOCK_AUTHORIZATIONS,backup_logs:MOCK_BACKUP_LOGS,login_sessions:MOCK_LOGIN_SESSIONS,company_settings:MOCK_COMPANY_SETTINGS,products:MOCK_PRODUCTS,memo_documents:MOCK_MEMO_DOCUMENTS,score_proofs:MOCK_SCORE_PROOFS};
 const STORAGE_PREFIX = "lewa_erp_";
-const TRAINING_VIDEO_LINK_KEY = `${STORAGE_PREFIX}training_video_google_drive_link`;
 const storageKey = table=>`${STORAGE_PREFIX}${table}`;
 const cloneRows = rows=>JSON.parse(JSON.stringify(rows||[]));
 function readStoredTable(table, seed){
@@ -353,20 +333,6 @@ function readStoredTable(table, seed){
 function writeStoredTable(table, rows){
   if(typeof window==="undefined")return;
   window.localStorage.setItem(storageKey(table),JSON.stringify(rows||[]));
-}
-function readStoredValue(key, fallback=""){
-  if(typeof window==="undefined")return fallback;
-  const value=window.localStorage.getItem(key);
-  return value==null?fallback:value;
-}
-function writeStoredValue(key, value){
-  if(typeof window==="undefined")return;
-  const trimmed=typeof value==="string"?value.trim():value;
-  if(!trimmed){
-    window.localStorage.removeItem(key);
-    return;
-  }
-  window.localStorage.setItem(key, trimmed);
 }
 function initialTable(table){
   return readStoredTable(table, MOCK_DB[table]||[]);
@@ -678,80 +644,80 @@ function Dashboard({user,areas,shops,profiles,attendance,visits,deliveries,lpos,
   </div>;
 }
 
-function TrainingVideoPage({user}){
-  const [videoLinkDraft,setVideoLinkDraft]=useState(()=>readStoredValue(TRAINING_VIDEO_LINK_KEY,""));
-  const [savedVideoLink,setSavedVideoLink]=useState(()=>readStoredValue(TRAINING_VIDEO_LINK_KEY,""));
-  const embeddedVideoLink=googleDrivePreviewUrl(savedVideoLink);
-  const hasSavedVideoLink=Boolean(savedVideoLink.trim());
+function TrainingVideoPage(){
+  const videoRef=useRef(null);
+  const [videoStarted,setVideoStarted]=useState(false);
+  const [videoEnded,setVideoEnded]=useState(false);
   const workflow=[
-    "Login to Al Lewa App",
-    "Open Daily Route Plan",
-    "Review Assigned Shops",
-    "Select Shop and Start Visit",
-    "Capture Before Display Photo",
-    "Check Shelf Display, Stock and Pricing",
+    "Login",
+    "Dashboard",
+    "Daily Route Plan",
+    "Select Shop",
+    "Start Visit",
+    "Current Display Photo",
     "Report Stock Issue / OOS",
-    "Add Competitor Activity",
-    "Add Order Request if Required",
-    "Capture After Display Photo",
-    "Confirm GPS Location",
-    "Press End Visit",
-    "Move to Next Shop",
-    "Complete Daily Route",
+    "Competitor Activity",
+    "Order Request",
+    "GPS / Open Location",
+    "End Visit",
+    "Visit Completed",
   ];
   const rules=[
-    "Start visit only after reaching the shop.",
+    "Keep the demo focused on the essential Merchandiser workflow.",
+    "Target a maximum demonstration duration of 2 minutes.",
+    "Start visit only after reaching the selected shop.",
     "Keep GPS enabled.",
-    "Upload clear before and after photos.",
+    "Upload a clear current display photo.",
     "Report OOS and stock issues immediately.",
     "Enter competitor information accurately.",
-    "Do not end visit before submitting required details.",
-    "Complete all assigned shops before ending the day.",
+    "Do not end visit before submitting required visit details.",
   ];
-  const saveVideoLink=()=>{
-    const next=(videoLinkDraft||"").trim();
-    writeStoredValue(TRAINING_VIDEO_LINK_KEY, next);
-    setVideoLinkDraft(next);
-    setSavedVideoLink(next);
+  const playTrainingVideo=async()=>{
+    const video=videoRef.current;
+    if(!video)return;
+    setVideoStarted(true);
+    setVideoEnded(false);
+    try{
+      await video.play();
+    }catch(e){
+      console.warn("Training video playback was blocked by the browser.", e);
+    }
   };
-  const clearVideoLink=()=>{
-    writeStoredValue(TRAINING_VIDEO_LINK_KEY, "");
-    setVideoLinkDraft("");
-    setSavedVideoLink("");
+  const replayTrainingVideo=async()=>{
+    const video=videoRef.current;
+    if(video)video.currentTime=0;
+    await playTrainingVideo();
+  };
+  const handleVideoEnded=()=>{
+    setVideoEnded(true);
+    setVideoStarted(false);
   };
   return <div>
     <PageHeader title="Training / Demo Video" subtitle="Al Lewa Training & Demo Video" />
     <Card style={{maxWidth:1100,margin:"0 auto",overflowX:"hidden"}}>
       <div style={{fontSize:"14px",fontWeight:700,color:"var(--lewa-text)",marginBottom:10}}>Al Lewa Training & Demo Video</div>
-      {user?.role==="Admin"&&<div style={{display:"flex",alignItems:"flex-end",gap:10,flexWrap:"wrap",marginBottom:14}}>
-        <div style={{minWidth:260,flex:"1 1 320px"}}>
-          <div style={{fontSize:"12px",fontWeight:700,color:"var(--lewa-text)",marginBottom:6}}>Google Drive video link</div>
-          <Input value={videoLinkDraft} onChange={setVideoLinkDraft} placeholder="Paste Google Drive share link"/>
-        </div>
-        <Btn variant="primary" onClick={saveVideoLink}>Save Link</Btn>
-        <Btn onClick={clearVideoLink}>Clear</Btn>
-      </div>}
       <div style={{fontSize:"12px",color:"var(--lewa-text-muted)",marginBottom:10}}>
-        {hasSavedVideoLink?"Using saved Google Drive video link.":"Using local video fallback: /videos/Brand Logo Video.mp4"}
+        Professional merchandiser workflow demo. Press Play when ready.
       </div>
-      <div style={{border:"2px solid #0B6B2E",borderRadius:16,overflow:"hidden",boxShadow:"0 10px 24px rgba(11,107,46,0.14)",background:"#000000",marginBottom:18}}>
-        {hasSavedVideoLink?<iframe
-          title="Al Lewa Training Video"
-          src={embeddedVideoLink}
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          style={{display:"block",width:"100%",maxWidth:"1100px",height:"auto",border:"0",background:"#000000",aspectRatio:"16 / 9"}}
-        />:<video
-          autoPlay
+      <div style={{border:"2px solid #0B6B2E",borderRadius:16,overflow:"hidden",boxShadow:"0 10px 24px rgba(11,107,46,0.14)",background:"#000000",marginBottom:18,position:"relative",aspectRatio:"16 / 9"}}>
+        <video
+          ref={videoRef}
           muted
-          loop
           playsInline
-          controls
+          controls={videoStarted}
           preload="metadata"
-          style={{display:"block",width:"100%",maxWidth:"1100px",height:"auto",objectFit:"contain",background:"#000000",aspectRatio:"16 / 9"}}
+          onEnded={handleVideoEnded}
+          style={{display:"block",width:"100%",height:"100%",objectFit:"contain",background:"#000000"}}
           src="/videos/Brand Logo Video.mp4"
-        />}
+        />
+        {!videoStarted&&!videoEnded&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.48))"}}>
+          <button type="button" onClick={playTrainingVideo} aria-label="Play training video" style={{width:118,height:118,borderRadius:"50%",border:"2px solid rgba(255,255,255,0.86)",background:"rgba(15,110,86,0.92)",color:"#FFFFFF",display:"inline-flex",alignItems:"center",justifyContent:"center",boxShadow:"0 16px 34px rgba(0,0,0,0.32)",cursor:"pointer",fontSize:48,lineHeight:1,paddingLeft:8}}>
+            ▶
+          </button>
+        </div>}
+        {videoEnded&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(180deg, rgba(0,0,0,0.30), rgba(0,0,0,0.58))"}}>
+          <Btn variant="primary" onClick={replayTrainingVideo} style={{fontSize:16,padding:"14px 22px",borderRadius:999,boxShadow:"0 14px 30px rgba(0,0,0,0.28)"}}>Replay Training</Btn>
+        </div>}
       </div>
 
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:12}}>
@@ -2790,7 +2756,7 @@ export default function App(){
 
   const pageMap={
     "Dashboard":<Dashboard {...sharedProps}/>,
-    "Training / Demo Video":<TrainingVideoPage user={currentUser} />,
+    "Training / Demo Video":<TrainingVideoPage />,
     "Users & Authorization":<UsersPage {...sharedProps} themeMode={themeMode}/>,
     "Authorizations":<AuthorizationsPage {...sharedProps}/>,
     "Session Tracker":<SessionsPage {...sharedProps}/>,
